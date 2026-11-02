@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in; connect-src https://*.supabase.co https://*.supabase.in; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Trotuar Liber</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: o singură coloană de lucru (telefon întâi), bandă de pavaj tactil sus, trei vederi: Constatare / Hartă / Registru */
+:root{
+  --bg:#f3f2ee; --surface:#ffffff; --ink:#1d1f22; --muted:#5d6168; --line:#d9d7d0;
+  --asphalt:#2b2e33; --tactile:#f2c200; --tactile-ink:#3a2f00;
+  --bad:#c0392b; --warn:#b26a00; --ok:#2e7d4f; --info:#2f5d8a;
+  --bad-bg:#fbe9e7; --warn-bg:#fdf1dc; --ok-bg:#e6f3ea; --info-bg:#e7eff7;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --s0:4px;--s1:8px;--s2:12px;--s3:16px;--s4:24px;--s5:32px;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17191c; --surface:#212428; --ink:#ecebe6; --muted:#a3a6ab; --line:#363a40;
+  --asphalt:#0f1113; --tactile:#f5c814; --tactile-ink:#2a2200;
+  --bad:#ff7b6b; --warn:#f0a340; --ok:#6cc58f; --info:#7fb0e0;
+  --bad-bg:#3a201d; --warn-bg:#3a2c14; --ok-bg:#1c3226; --info-bg:#1b2938; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17191c; --surface:#212428; --ink:#ecebe6; --muted:#a3a6ab; --line:#363a40;
+  --asphalt:#0f1113; --tactile:#f5c814; --tactile-ink:#2a2200;
+  --bad:#ff7b6b; --warn:#f0a340; --ok:#6cc58f; --info:#7fb0e0;
+  --bad-bg:#3a201d; --warn-bg:#3a2c14; --ok-bg:#1c3226; --info-bg:#1b2938; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+@media (max-width:480px){.brand small{display:none}}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--asphalt)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--asphalt);color:#f3f2ee}
+.tactile{height:10px;background-color:var(--tactile);background-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,.28) 1.6px,transparent 2.2px);background-size:9px 9px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);padding-block:var(--s2) var(--s1)}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:1.75rem;letter-spacing:.02em;margin:0;text-transform:uppercase}
+.brand h1 b{color:var(--tactile)}
+.brand small{font-family:var(--f-mono);font-size:.72rem;color:#b9bbbf;text-align:right}
+nav.tabs{display:flex;gap:2px}
+nav.tabs button{flex:1;background:transparent;border:0;color:#c9cbcf;font-family:var(--f-display);font-weight:600;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;padding:var(--s1) var(--s1) 10px;border-bottom:3px solid transparent;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--tactile)}
+nav.tabs button:focus-visible{outline:2px solid var(--tactile);outline-offset:-2px}
+main{padding-block:var(--s4) var(--s5)}
+section.view{display:flex;flex-direction:column;gap:var(--s4)}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.step h2{font-family:var(--f-display);font-size:1.3rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:0;display:flex;gap:var(--s1);align-items:baseline}
+.step h2 .n{font-family:var(--f-mono);font-size:.8rem;font-weight:500;color:var(--tactile-ink);background:var(--tactile);padding:1px 7px;border-radius:3px;letter-spacing:0}
+.hint{color:var(--muted);font-size:.9rem;margin:0}
+label.lbl{font-size:.85rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px}
+input[type=text],input[type=email],input[type=tel],textarea,select{width:100%;font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+textarea{resize:vertical;min-height:90px}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.row{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:var(--s2)}
+.btn{font-family:var(--f-display);font-weight:700;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;border-radius:var(--r);border:1px solid var(--ink);background:transparent;color:var(--ink);padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px}
+.btn.primary{background:var(--tactile);border-color:var(--tactile);color:var(--tactile-ink)}
+.btn.dark{background:var(--asphalt);border-color:var(--asphalt);color:#f3f2ee}
+.btn.small{font-size:.9rem;padding:6px 10px;min-height:36px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.photo-drop{position:relative;border:2px dashed var(--line);border-radius:var(--r);min-height:180px;display:grid;place-items:center;text-align:center;padding:var(--s3);cursor:pointer;background:var(--bg)}
+.photo-drop.has{border-style:solid;padding:0;background:#000}
+.photo-drop img{max-height:420px;width:100%;object-fit:contain;display:block;border-radius:calc(var(--r) - 2px)}
+.photo-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:.78rem;padding:3px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.chip.sector{background:var(--asphalt);color:#fff;border-color:var(--asphalt);font-weight:500}
+.chip.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.chip.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.chip.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.chip.info{background:var(--info-bg);color:var(--info);border-color:transparent}
+.note{border-left:4px solid var(--info);background:var(--info-bg);padding:var(--s2);border-radius:0 var(--r) var(--r) 0;font-size:.92rem}
+.note.warn{border-color:var(--warn);background:var(--warn-bg)}
+.note.bad{border-color:var(--bad);background:var(--bad-bg)}
+.mono{font-family:var(--f-mono);font-size:.88rem}
+.map-box{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);overflow:hidden}
+.map-box svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.map-box.pick svg{cursor:crosshair}
+svg .sec{stroke:var(--surface);stroke-width:6;stroke-linejoin:round}
+svg .sec-label{font-family:var(--f-display);font-weight:700;font-size:78px;fill:var(--muted);text-anchor:middle;dominant-baseline:middle;pointer-events:none;opacity:.8}
+svg .pin{stroke:var(--surface);stroke-width:6;cursor:pointer}
+.issues{display:flex;flex-direction:column;gap:var(--s2);margin:0;padding:0;list-style:none}
+.issue{border:1px solid var(--line);border-left-width:5px;border-radius:var(--r);padding:var(--s2);display:flex;flex-direction:column;gap:6px;min-width:0}
+.issue.g-ridicata{border-left-color:var(--bad)} .issue.g-medie{border-left-color:var(--warn)} .issue.g-scazuta{border-left-color:var(--info)}
+.issue h3{margin:0;font-size:1.02rem;font-weight:600}
+.issue dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0;font-size:.9rem}
+.issue dt{color:var(--muted);font-weight:500}
+.issue dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.ref{font-family:var(--f-mono);font-size:.8rem;color:var(--info)}
+.verdict{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.verdict strong{font-family:var(--f-display);font-size:1.5rem;text-transform:uppercase;letter-spacing:.03em}
+.recips{display:flex;flex-direction:column;gap:var(--s1)}
+.recip{display:flex;gap:var(--s2);align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:var(--s2);cursor:pointer}
+.recip input{margin-top:5px;accent-color:var(--asphalt);width:18px;height:18px}
+.recip .who{font-weight:600}
+.recip .addr{font-family:var(--f-mono);font-size:.85rem;overflow-wrap:anywhere;user-select:all}
+.thinking{display:flex;gap:var(--s2);align-items:center;color:var(--muted)}
+.dots{display:inline-flex;gap:4px}.dots i{width:8px;height:8px;border-radius:50%;background:var(--tactile);animation:b 1s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{transform:scale(.5);opacity:.5}40%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.dots i{animation:none}}
+.reg-card{display:grid;grid-template-columns:96px 1fr;gap:var(--s2);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s2);min-width:0}
+.reg-card img{width:96px;height:96px;object-fit:cover;border-radius:4px;background:var(--line)}
+.reg-card .meta{display:flex;flex-direction:column;gap:6px;min-width:0}
+.reg-card .addr{font-weight:600;overflow-wrap:anywhere}
+.reg-card details{grid-column:1/-1}
+.reg-card summary{cursor:pointer;color:var(--info);font-weight:500}
+.reg-card pre{white-space:pre-wrap;font-family:var(--f-body);font-size:.9rem;background:var(--bg);padding:var(--s2);border-radius:var(--r);margin:var(--s1) 0 0;max-height:360px;overflow:auto}
+.reg-card.hl{outline:3px solid var(--tactile)}
+.empty{text-align:center;color:var(--muted);padding:var(--s5) var(--s3);border:2px dashed var(--line);border-radius:var(--r)}
+.legend{display:flex;gap:var(--s2);flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--asphalt);color:#fff;padding:10px 16px;border-radius:var(--r);font-weight:500;z-index:20;max-width:calc(100% - 32px)}
+.kbd{font-family:var(--f-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
+.inline-confirm{display:flex;gap:var(--s1);align-items:center;flex-wrap:wrap;font-size:.9rem}
+</style>
+<script src="config.js"></script>
+<script src="shim.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="tactile" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="brand">
+      <h1>Trotuar <b>Liber</b></h1>
+      <small>NP 051-2012 · NP 068-02<br>Legea 448/2006 · OG 27/2002</small>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-nou" aria-selected="true" data-view="nou">Constatare</button>
+      <button role="tab" id="tab-harta" aria-selected="false" data-view="harta">Hartă</button>
+      <button role="tab" id="tab-registru" aria-selected="false" data-view="registru">Registru <span id="regCount"></span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ============ CONSTATARE NOUĂ ============ -->
+  <section class="view" id="view-nou">
+    <div class="step">
+      <h2><span class="n">01</span> Fotografia</h2>
+      <label class="photo-drop" id="drop" for="photo">
+        <div id="dropEmpty">
+          <div style="font-family:var(--f-display);font-size:1.4rem;font-weight:700;text-transform:uppercase">Fă o poză sau alege una</div>
+          <p class="hint">Pe telefon se deschide camera. Ține locația activă la cameră: din poză se citesc coordonatele GPS.</p>
+        </div>
+        <img id="preview" alt="Fotografia constatării" hidden>
+        <input type="file" id="photo" accept="image/*" capture="environment">
+      </label>
+      <div class="row" id="photoMeta" hidden></div>
+    </div>
+
+    <div class="step">
+      <h2><span class="n">02</span> Unde</h2>
+      <div id="locStatus" class="note">Coordonatele vin din fotografie. Dacă poza nu le are, lipește-le din Google Maps (ține apăsat pe hartă → copiază coordonatele) sau atinge harta de mai jos.</div>
+      <div class="grid2">
+        <div><label class="lbl" for="coords">Coordonate (lat, lon) sau link Google Maps</label>
+          <input type="text" id="coords" inputmode="decimal" placeholder="44.4268, 26.1025" autocomplete="off"></div>
+        <div><label class="lbl" for="sector">Sector</label>
+          <select id="sector"><option value="">— nedeterminat —</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+      </div>
+      <div><label class="lbl" for="adresa">Adresa (stradă, nr., reper)</label>
+        <input type="text" id="adresa" placeholder="ex. Str. Popa Nan nr. 12, în dreptul stației STB" autocomplete="off"></div>
+      <div class="map-box pick" id="pickMap"></div>
+      <div><label class="lbl" for="nota">Ce ai observat / ce ai măsurat (opțional, ajută analiza)</label>
+        <textarea id="nota" placeholder="ex. mașini parcate pe toată lățimea trotuarului; lățime liberă măsurată ~60 cm; bordura la trecere ~15 cm"></textarea></div>
+    </div>
+
+    <div class="step">
+      <h2><span class="n">03</span> Analiza normativă</h2>
+      <p class="hint">Claude verifică fotografia față de NP 051-2012 cap. IV (spațiul urban accesibil), NP 068-02 cap. 2.A (siguranța circulației pietonale) și Legea 448/2006. Cotele din poză sunt estimate vizual; ce trebuie măsurat pe teren apare separat.</p>
+      <div class="row">
+        <button class="btn primary" id="analyze" disabled>Analizează fotografia</button>
+        <button class="btn small" id="stop" hidden>Oprește</button>
+      </div>
+      <div id="analysis"></div>
+    </div>
+
+    <div class="step" id="step4" hidden>
+      <h2><span class="n">04</span> Sesizarea</h2>
+      <p class="hint">Petițiile anonime nu se iau în considerare (OG 27/2002, art. 7). Datele tale rămân doar în acest browser.</p>
+      <div class="grid2">
+        <div><label class="lbl" for="pNume">Nume și prenume</label><input type="text" id="pNume" autocomplete="name"></div>
+        <div><label class="lbl" for="pEmail">E-mail pentru răspuns</label><input type="email" id="pEmail" autocomplete="email"></div>
+        <div><label class="lbl" for="pTel">Telefon (opțional)</label><input type="tel" id="pTel" autocomplete="tel"></div>
+        <div><label class="lbl" for="pAdr">Domiciliul (opțional)</label><input type="text" id="pAdr" autocomplete="street-address"></div>
+      </div>
+      <div><label class="lbl">Destinatar</label><div class="recips" id="recips"></div></div>
+      <div><label class="lbl" for="letter">Textul sesizării (îl poți edita)</label>
+        <textarea id="letter" style="min-height:340px"></textarea></div>
+      <div class="row">
+        <button class="btn dark" id="copyLetter">Copiază textul</button>
+        <button class="btn" id="copySubject">Copiază subiectul</button>
+        <a class="btn" id="mailto" href="#" target="_blank" rel="noopener">Deschide e-mailul</a>
+        <button class="btn" id="savePhoto" hidden>Salvează fotografia</button>
+      </div>
+      <p class="hint">Atașează fotografia manual la e-mail sau în formularul online al instituției. Butonul „Deschide e-mailul” poate să nu funcționeze în unele aplicații; adresa e afișată mai sus și se poate copia.</p>
+      <div class="row">
+        <button class="btn primary" id="saveRec">Salvează în registru</button>
+        <button class="btn small" id="reset">Constatare nouă</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HARTĂ ============ -->
+  <section class="view" id="view-harta" hidden>
+    <div class="step">
+      <h2>Harta constatărilor</h2>
+      <div class="legend">
+        <span><i style="background:var(--bad)"></i>gravitate ridicată</span>
+        <span><i style="background:var(--warn)"></i>medie</span>
+        <span><i style="background:var(--info)"></i>scăzută / de verificat</span>
+        <span><i style="background:var(--ok)"></i>rezolvată</span>
+      </div>
+      <div class="map-box" id="bigMap"></div>
+      <p class="hint">Limitele sectoarelor: OpenStreetMap (relațiile administrative Sector 1–6), simplificate la ~30 m. Atinge un punct pentru detalii.</p>
+    </div>
+  </section>
+
+  <!-- ============ REGISTRU ============ -->
+  <section class="view" id="view-registru" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <label class="lbl" for="fSector" style="margin:0">Sector</label>
+        <select id="fSector" style="width:auto"><option value="">toate</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+        <label class="lbl" for="fStatus" style="margin:0">Stare</label>
+        <select id="fStatus" style="width:auto"><option value="">toate</option><option value="noua">nouă</option><option value="trimisa">trimisă</option><option value="raspuns">răspuns primit</option><option value="rezolvata">rezolvată</option><option value="respinsa">respinsă</option></select>
+      </div>
+      <button class="btn small" id="exportBtn" hidden>Exportă registrul</button>
+    </div>
+    <div id="regList" style="display:flex;flex-direction:column;gap:var(--s2)"></div>
+  </section>
+  <footer>Analiza automată e un ajutor la redactare, nu o expertiză tehnică. Verifică referințele înainte de trimitere. Adresele instituțiilor: site-urile primăriilor și Civia.ro (nov. 2026).</footer>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
