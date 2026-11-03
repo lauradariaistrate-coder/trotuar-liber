@@ -166,7 +166,7 @@
     try { return JSON.parse(t); } catch {}
     const m = t.match(/```(?:json)?\s*([\s\S]*?)```/); if (m) { try { return JSON.parse(m[1]); } catch {} }
     const a = t.indexOf("{"), b = t.lastIndexOf("}"); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch {} }
-    throw { code: "invalid_json", message: "răspuns nevalid", text: t };
+    throw { code: "invalid_json", message: "răspuns nevalid: " + t.slice(0, 120).replace(/\s+/g, " "), text: t };
   }
   async function callAI(prompt, opts = {}) {
     const imgs = opts.images ? (Array.isArray(opts.images) ? opts.images : [opts.images]) : [];
@@ -178,7 +178,8 @@
     if (r.status === 429) throw { code: "rate_limited", message: j.error || "limită zilnică" };
     if (r.status === 403) throw { code: "not_granted", message: j.error || "neautorizat" };
     if (r.status === 413) throw { code: "image_rejected", message: j.error || "imagine prea mare" };
-    if (!r.ok || !j.text) throw { code: "upstream_error", message: j.error || ("funcție " + r.status) };
+    if (!r.ok || !j.text) throw { code: "upstream_error", message: j.error || ("funcție " + r.status + ", fără text") };
+    if (j.stop === "max_tokens") throw { code: "invalid_json", message: "răspuns tăiat la limita de lungime", text: j.text };
     return j.text;
   }
   const sample = async (prompt, opts) => { const text = await callAI(prompt, opts); return { text, truncated: false, modelTierApplied: "default" }; };
