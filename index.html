@@ -131,6 +131,7 @@ svg .pin{stroke:var(--surface);stroke-width:6;cursor:pointer}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--asphalt);color:#fff;padding:10px 16px;border-radius:var(--r);font-weight:500;z-index:20;max-width:calc(100% - 32px)}
 .kbd{font-family:var(--f-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 4px}
 footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
+.priv-canvas{display:block;width:100%;height:auto;border-radius:var(--r);touch-action:none;cursor:crosshair;background:#000}
 .inline-confirm{display:flex;gap:var(--s1);align-items:center;flex-wrap:wrap;font-size:.9rem}
 </style>
 <script src="config.js"></script>
@@ -201,8 +202,17 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       <div id="analysis"></div>
     </div>
 
+    <div class="step" id="privStep" hidden>
+      <h2><span class="n">04</span> Protecția datelor din poză</h2>
+      <p class="hint" style="margin:0">Fețele și numerele găsite sunt estompate. <b>Atinge o zonă</b> ca s-o scoți, <b>trage cu degetul</b> peste ce mai trebuie ascuns. În registru și în e-mail ajunge doar poza estompată.</p>
+      <canvas id="privCanvas" class="priv-canvas" aria-label="Poza cu zonele estompate"></canvas>
+      <label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" id="blurPlates" style="width:20px;height:20px;accent-color:var(--asphalt)"> Estompează numerele de înmatriculare</label>
+      <div class="note warn" id="plateNote" hidden>Numerele rămân vizibile: pentru o mașină parcată ilegal, Poliția Locală are nevoie de număr ca să constate fapta.</div>
+      <div class="row"><span class="hint" id="privCount"></span><button class="btn small" type="button" id="privUndo" disabled>Anulează ultima modificare</button></div>
+    </div>
+
     <div class="step" id="step4" hidden>
-      <h2><span class="n">04</span> Sesizarea</h2>
+      <h2><span class="n">05</span> Sesizarea</h2>
       <div id="signedAs" class="note"></div>
       <div><label class="lbl">Destinatar</label><div class="recips" id="recips"></div></div>
       <div><label class="lbl" for="letter">Textul sesizării (îl poți edita)</label>

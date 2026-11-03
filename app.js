@@ -76,6 +76,7 @@ REGULI:
 3. Pentru fiecare problemă citează referința exactă din extrase (ex. "NP 051-2012, IV.2.4 (7)").
 4. Gravitate: "ridicata" = blochează trecerea sau pericol de cădere/coliziune; "medie" = îngreunează deplasarea persoanelor cu dizabilități; "scazuta" = abatere minoră.
 5. Scrie în limba română, formal, fără diacritice lipsă.
+6. Protecția datelor: marchează în "zone_private" TOATE fețele de persoane și TOATE numerele de înmatriculare vizibile (inclusiv mici, din fundal), ca dreptunghiuri cu coordonate relative la imagine (0–1): x,y = colțul stânga-sus, w,h = lățimea și înălțimea. Mai bine prea mare decât prea mic. Listă goală dacă nu există.
 
 Răspunde DOAR cu un obiect JSON, fără alt text, exact cu această formă:
 {"verdict":"neconform"|"posibil_neconform"|"conform"|"imagine_neclara",
@@ -88,13 +89,14 @@ Răspunde DOAR cu un obiect JSON, fără alt text, exact cu această formă:
  "motiv_responsabil":"o propoziție",
  "adresa_vizibila":"text de pe plăcuțe/indicatoare din poză sau null",
  "descriere_sesizare":"paragraf de 3-6 propoziții pentru petiție, la persoana I, care descrie situația constatată",
- "solicitari":["măsuri concrete solicitate autorității, 2-4 puncte"]}`;
+ "solicitari":["măsuri concrete solicitate autorității, 2-4 puncte"],
+ "zone_private":[{"tip":"fata"|"numar","x":0.0,"y":0.0,"w":0.0,"h":0.0}]}`;
 }
 
 /* ---------- Stare ---------- */
 const $ = id => document.getElementById(id);
 const PHOTO_URL = window.TL_PHOTO_URL || null; // varianta GitHub: link semnat pentru poze private
-const S = { file: null, blob: null, thumb: null, lat: null, lon: null, sectorAuto: null, edge: null, date: null, result: null, recips: [], chosen: null, savedId: null, records: [] };
+const S = { zones: [], pub: null, bmp: null, file: null, blob: null, thumb: null, lat: null, lon: null, sectorAuto: null, edge: null, date: null, result: null, recips: [], chosen: null, savedId: null, records: [] };
 let cap = { sample: null, db: null, assets: null, user: null, downloads: null, uid: null };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
@@ -231,7 +233,7 @@ async function decodeScaled(f, max) {
 async function loadPhoto(f) {
   if (/hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name || "")) { toast("Poza e HEIC. Setează camera pe JPEG („Cel mai compatibil”) sau alege altă poză."); }
   $("dropEmpty").innerHTML = `<div class="thinking"><span class="dots"><i></i><i></i><i></i></span> Se încarcă poza…</div>`;
-  S.file = f; S.result = null; $("analysis").innerHTML = ""; $("step4").hidden = true; S.savedId = null;
+  S.file = f; S.result = null; $("analysis").innerHTML = ""; $("step4").hidden = true; $("privStep").hidden = true; S.savedId = null; S.zones = []; S.pub = null; if (S.bmp && S.bmp.close) S.bmp.close(); S.bmp = null;
   try {
     const bmp = await decodeScaled(f, 1800);
     S.blob = await scaled(bmp, 1800, 0.86, "blob");
@@ -267,6 +269,93 @@ function scaled(bmp, max, q, kind) {
 }
 function updateButtons() { $("analyze").disabled = !(S.blob && cap.sample); }
 
+/* ---------- Protecția datelor: estompare fețe / numere ---------- */
+const clamp01 = v => Math.max(0, Math.min(1, Number(v) || 0));
+let privHist = [], privT = null, privPending = null;
+async function initPrivacy(r) {
+  try { S.bmp = await createImageBitmap(S.blob); } catch { S.bmp = null; return; }
+  S.zones = (Array.isArray(r.zone_private) ? r.zone_private : []).map(z => {
+    let x = clamp01(z.x), y = clamp01(z.y), w = clamp01(z.w), h = clamp01(z.h);
+    const px = w * .15, py = h * .15; // margine de siguranță
+    x = clamp01(x - px); y = clamp01(y - py); w = Math.min(1 - x, w + 2 * px); h = Math.min(1 - y, h + 2 * py);
+    return { tip: z.tip === "numar" ? "numar" : "fata", x, y, w, h };
+  }).filter(z => z.w > .003 && z.h > .003);
+  privHist = [];
+  const police = r.responsabil === "politia_locala" || r.responsabil_secundar === "politia_locala";
+  $("blurPlates").checked = !police;
+  $("privStep").hidden = false;
+  privChanged(true);
+}
+function activeZones() { return S.zones.filter(z => z.tip !== "numar" || $("blurPlates").checked); }
+function pixelate(ctx, img, W, H, z) {
+  const x = Math.round(z.x * W), y = Math.round(z.y * H), w = Math.max(2, Math.round(z.w * W)), h = Math.max(2, Math.round(z.h * H));
+  const bs = Math.max(8, Math.round(Math.max(w, h) / 7));
+  const t = document.createElement("canvas"); t.width = Math.max(1, Math.ceil(w / bs)); t.height = Math.max(1, Math.ceil(h / bs));
+  const tc = t.getContext("2d"); tc.drawImage(img, x, y, w, h, 0, 0, t.width, t.height);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(t, 0, 0, t.width, t.height, x, y, w, h); ctx.restore();
+}
+function renderPublic(cv, withMarks) {
+  const W = S.bmp.width, H = S.bmp.height; cv.width = W; cv.height = H;
+  const c = cv.getContext("2d"); c.drawImage(S.bmp, 0, 0);
+  activeZones().forEach(z => pixelate(c, S.bmp, W, H, z));
+  if (withMarks) {
+    const lw = Math.max(3, Math.round(W / 300));
+    S.zones.forEach(z => {
+      const on = z.tip !== "numar" || $("blurPlates").checked;
+      c.save(); c.lineWidth = lw; c.setLineDash(on ? [] : [lw * 3, lw * 2]);
+      c.strokeStyle = on ? "#f2c200" : "rgba(255,255,255,.85)";
+      c.strokeRect(z.x * W, z.y * H, z.w * W, z.h * H);
+      c.fillStyle = on ? "#f2c200" : "rgba(255,255,255,.85)"; c.font = `600 ${lw * 6}px sans-serif`;
+      c.fillText(z.tip === "numar" ? "număr" : z.tip === "fata" ? "față" : "zonă", z.x * W + lw, Math.max(lw * 6, z.y * H - lw * 1.5));
+      c.restore();
+    });
+  }
+}
+function privChanged(now) {
+  if (!S.bmp) return;
+  renderPublic($("privCanvas"), true);
+  const nf = S.zones.filter(z => z.tip === "fata").length, nn = S.zones.filter(z => z.tip === "numar").length, nm = S.zones.filter(z => z.tip === "manual").length;
+  $("privCount").textContent = `${nf} ${nf === 1 ? "față" : "fețe"} · ${nn} ${nn === 1 ? "număr" : "numere"}${nm ? ` · ${nm} ${nm === 1 ? "zonă adăugată" : "zone adăugate"}` : ""}`;
+  $("plateNote").hidden = $("blurPlates").checked || !nn;
+  $("privUndo").disabled = !privHist.length;
+  clearTimeout(privT); S.pub = null;
+  privPending = new Promise(res => { privT = setTimeout(async () => { await buildPublic(); res(); }, now ? 0 : 250); });
+}
+async function buildPublic() {
+  const cv = document.createElement("canvas"); renderPublic(cv, false);
+  S.pub = await new Promise(r => cv.toBlob(r, "image/jpeg", .86));
+  const t = document.createElement("canvas"); const k = Math.min(1, 360 / Math.max(cv.width, cv.height));
+  t.width = Math.round(cv.width * k); t.height = Math.round(cv.height * k); t.getContext("2d").drawImage(cv, 0, 0, t.width, t.height);
+  S.thumb = t.toDataURL("image/jpeg", .7);
+  if (S.result) $("shareRow").hidden = !canShareFile();
+}
+async function privReady() { if (privPending) await privPending; }
+$("blurPlates").addEventListener("change", () => privChanged());
+$("privUndo").addEventListener("click", () => { const prev = privHist.pop(); if (prev) { S.zones = prev; privChanged(); } });
+(() => {
+  const cv = $("privCanvas"); let st = null;
+  const pt = e => { const r = cv.getBoundingClientRect(); return { x: clamp01((e.clientX - r.left) / r.width), y: clamp01((e.clientY - r.top) / r.height) }; };
+  cv.addEventListener("pointerdown", e => { if (!S.bmp) return; cv.setPointerCapture(e.pointerId); st = pt(e); });
+  cv.addEventListener("pointermove", e => {
+    if (!st) return; const p = pt(e); privChanged.preview = true;
+    renderPublic(cv, true); const c = cv.getContext("2d"); c.save(); c.strokeStyle = "#f2c200"; c.lineWidth = Math.max(3, cv.width / 300); c.setLineDash([10, 6]);
+    c.strokeRect(Math.min(st.x, p.x) * cv.width, Math.min(st.y, p.y) * cv.height, Math.abs(p.x - st.x) * cv.width, Math.abs(p.y - st.y) * cv.height); c.restore();
+  });
+  cv.addEventListener("pointerup", e => {
+    if (!st) return; const p = pt(e); const a = st; st = null;
+    const dx = Math.abs(p.x - a.x), dy = Math.abs(p.y - a.y);
+    privHist.push(S.zones.map(z => ({ ...z })));
+    if (dx < .02 && dy < .02) { // atingere: scoate zona de sub deget
+      const i = S.zones.map((z, k) => [z, k]).reverse().find(([z]) => p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h);
+      if (i) { S.zones.splice(i[1], 1); toast("Zonă scoasă – „Anulează” o readuce"); } else { privHist.pop(); }
+    } else {
+      S.zones.push({ tip: "manual", x: Math.min(a.x, p.x), y: Math.min(a.y, p.y), w: dx, h: dy });
+    }
+    privChanged();
+  });
+  cv.addEventListener("pointercancel", () => { st = null; privChanged(); });
+})();
+
 /* ---------- Analiză ---------- */
 let ctl = null;
 $("stop").addEventListener("click", () => ctl && ctl.abort());
@@ -282,6 +371,7 @@ $("analyze").addEventListener("click", async () => {
     S.result = r; renderAnalysis(r);
     if (!$("adresa").value.trim() && r.adresa_vizibila) $("adresa").value = r.adresa_vizibila;
     $("step4").hidden = false; buildRecips(); buildLetter();
+    await initPrivacy(r);
   } catch (e) {
     const msg = {
       cancelled: "Analiza a fost oprită.", not_granted: "Analiza are nevoie de permisiunea de a folosi Claude. O poți acorda din meniul de permisiuni al paginii.",
@@ -416,10 +506,10 @@ function buildLetter() {
   if (rc.e) { m.hidden = false; m.href = `mailto:${rc.e}?subject=${encodeURIComponent(subject())}&body=${encodeURIComponent(t)}`; }
   else m.hidden = true;
 }
-function photoFile() { return S.blob ? new File([S.blob], `sesizare-${(S.date || new Date()).toISOString().slice(0, 10)}-S${$("sector").value || "x"}.jpg`, { type: "image/jpeg" }) : null; }
+function photoFile() { const b = S.pub || S.blob; return b ? new File([b], `sesizare-${(S.date || new Date()).toISOString().slice(0, 10)}-S${$("sector").value || "x"}.jpg`, { type: "image/jpeg" }) : null; }
 function canShareFile() { try { const f = photoFile(); return !!(window.claude && window.claude.__shim && f && navigator.canShare && navigator.canShare({ files: [f] })); } catch { return false; } }
 $("shareMail").addEventListener("click", async () => {
-  const f = photoFile(); if (!f) return;
+  await privReady(); const f = photoFile(); if (!f) return;
   const rc = chosenRecip();
   if (rc && rc.e) { try { await navigator.clipboard.writeText(rc.e); toast("Adresa " + rc.e + " e copiată – lipește-o la „Către”"); } catch {} }
   try { await navigator.share({ files: [f], title: subject(), text: $("letter").value }); }
@@ -429,8 +519,8 @@ async function copy(text, okMsg) { try { await navigator.clipboard.writeText(tex
 $("copyLetter").addEventListener("click", () => copy($("letter").value, "Textul sesizării a fost copiat"));
 $("copySubject").addEventListener("click", () => copy(subject(), "Subiectul a fost copiat"));
 $("savePhoto").addEventListener("click", async () => {
-  if (!cap.downloads || !S.blob) return;
-  try { await cap.downloads.save({ filename: `sesizare-${(S.date || new Date()).toISOString().slice(0, 10)}-S${$("sector").value || "x"}.jpg`, data: S.blob }); }
+  if (!cap.downloads || !S.blob) return; await privReady();
+  try { await cap.downloads.save({ filename: `sesizare-${(S.date || new Date()).toISOString().slice(0, 10)}-S${$("sector").value || "x"}.jpg`, data: S.pub || S.blob }); }
   catch (e) { toast("Fotografia nu a fost salvată."); }
 });
 
@@ -441,7 +531,8 @@ $("saveRec").addEventListener("click", async () => {
   $("saveRec").disabled = true;
   try {
     let photoId = null;
-    if (cap.assets && S.blob) { try { photoId = (await cap.assets.upload(S.blob, { type: "image/jpeg" })).id; } catch {} }
+    await privReady();
+    if (cap.assets && (S.pub || S.blob)) { try { photoId = (await cap.assets.upload(S.pub || S.blob, { type: "image/jpeg" })).id; } catch {} }
     const rc = chosenRecip();
     const doc = {
       createdAt: new Date().toISOString(), fotoData: S.date ? S.date.toISOString() : null,
@@ -457,7 +548,7 @@ $("saveRec").addEventListener("click", async () => {
   finally { $("saveRec").disabled = false; }
 });
 $("reset").addEventListener("click", () => {
-  Object.assign(S, { file: null, blob: null, thumb: null, lat: null, lon: null, sectorAuto: null, edge: null, date: null, result: null, savedId: null });
+  Object.assign(S, { file: null, blob: null, thumb: null, lat: null, lon: null, sectorAuto: null, edge: null, date: null, result: null, savedId: null, zones: [], pub: null, bmp: null }); $("privStep").hidden = true;
   ["coords", "adresa", "nota", "letter"].forEach(id => $(id).value = ""); $("sector").value = "";
   $("photo").value = ""; resetDrop();
   $("photoMeta").hidden = true; $("analysis").innerHTML = ""; $("step4").hidden = true;
