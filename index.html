@@ -160,11 +160,15 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       <label class="photo-drop" id="drop" for="photo">
         <div id="dropEmpty">
           <div style="font-family:var(--f-display);font-size:1.4rem;font-weight:700;text-transform:uppercase">Fă o poză sau alege una</div>
-          <p class="hint">Pe telefon se deschide camera. Ține locația activă la cameră: din poză se citesc coordonatele GPS.</p>
+          <p class="hint">Atinge aici sau folosește butoanele de mai jos. Din poză se citesc coordonatele GPS, dacă există.</p>
         </div>
         <img id="preview" alt="Fotografia constatării" hidden>
-        <input type="file" id="photo" accept="image/*" capture="environment">
+        <input type="file" id="photo" accept="image/*">
       </label>
+      <div class="row">
+        <label class="btn dark" for="photoCam" style="position:relative">Fă o poză<input type="file" id="photoCam" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0;width:100%;cursor:pointer"></label>
+        <label class="btn" for="photoGal" style="position:relative">Alege din galerie<input type="file" id="photoGal" accept="image/*" style="position:absolute;inset:0;opacity:0;width:100%;cursor:pointer"></label>
+      </div>
       <div class="row" id="photoMeta" hidden></div>
     </div>
 

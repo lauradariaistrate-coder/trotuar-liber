@@ -156,7 +156,7 @@ function setLocation(lat, lon, src) {
   const r = sectorOf(S.lat, S.lon);
   S.sectorAuto = r ? r.s : null; S.edge = r ? r.edge : null;
   if (r) $("sector").value = r.s;
-  const srcTxt = { exif: "din fotografie (GPS)", manual: "introduse manual", harta: "alese pe hartă (aproximativ)" }[src];
+  const srcTxt = { exif: "din fotografie (GPS)", manual: "introduse manual", harta: "alese pe hartă (aproximativ)", gps: "din GPS-ul telefonului" }[src];
   if (!r) locNote("warn", `Coordonate ${srcTxt}. Punctul pare în afara limitelor celor 6 sectoare (Ilfov?). Alege sectorul manual.`);
   else if (r.edge < 60) locNote("warn", `Coordonate ${srcTxt}. Sector ${r.s} — dar punctul e la ~${Math.round(r.edge)} m de limita sectorului. Verifică pe <a href="https://www.google.com/maps?q=${S.lat},${S.lon}" target="_blank" rel="noopener">Google Maps</a> înainte de trimitere.`);
   else locNote("ok", `Coordonate ${srcTxt}. Sector ${r.s} (la ~${Math.round(r.edge)} m de limită). <a href="https://www.google.com/maps?q=${S.lat},${S.lon}" target="_blank" rel="noopener">Vezi pe Google Maps</a>`);
@@ -199,9 +199,21 @@ function parseTiff(v, t) {
       if (isFinite(lat) && isFinite(lon) && (lat || lon)) { res.lat = lat; res.lon = lon; } } }
   return res;
 }
+/* ---------- Locația curentă (doar în varianta GitHub; în Claude e blocată) ---------- */
+if (window.claude && window.claude.__shim && navigator.geolocation) {
+  $("geoRow").hidden = false;
+  $("geoBtn").addEventListener("click", () => {
+    $("geoBtn").disabled = true; locNote("ok", "Caut locația… (acceptă permisiunea de localizare)");
+    navigator.geolocation.getCurrentPosition(
+      p => { $("geoBtn").disabled = false; setLocation(p.coords.latitude, p.coords.longitude, "gps"); if (p.coords.accuracy > 40) toast(`Precizie ~${Math.round(p.coords.accuracy)} m – verifică pe hartă`); },
+      e => { $("geoBtn").disabled = false; locNote("bad", e.code === 1 ? "Localizarea e refuzată. Permite-o din setările browserului pentru acest site." : "Nu am putut afla locația. Încearcă afară sau lipește coordonatele."); },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  });
+}
+
 /* ---------- Fotografie ---------- */
-$("photo").addEventListener("change", async e => {
-  const f = e.target.files && e.target.files[0]; if (!f) return;
+["photo", "photoCam", "photoGal"].forEach(id => $(id).addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if (f) loadPhoto(f); e.target.value = ""; }));
+async function loadPhoto(f) {
   S.file = f; S.result = null; $("analysis").innerHTML = ""; $("step4").hidden = true; S.savedId = null;
   try {
     const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
@@ -223,7 +235,7 @@ $("photo").addEventListener("change", async e => {
   if (!S.date) S.date = new Date(f.lastModified || Date.now());
   $("photoMeta").innerHTML = meta.join(""); $("photoMeta").hidden = !meta.length;
   updateButtons();
-});
+}
 function scaled(bmp, max, q, kind) {
   const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
@@ -255,8 +267,9 @@ $("analyze").addEventListener("click", async () => {
       image_rejected: "Imaginea a fost refuzată (format sau dimensiune). Încearcă o altă fotografie.",
       images_unavailable: "Această vizualizare nu poate trimite imagini către Claude (deschide pagina în claude.ai).",
       invalid_json: "Răspunsul nu a avut formatul așteptat. Apasă din nou „Analizează”.", refused: "Claude nu a putut analiza această imagine."
-    }[e && e.code] || "Analiza nu a reușit (eroare temporară). Încearcă din nou.";
-    $("analysis").innerHTML = `<div class="note ${e && e.code === "cancelled" ? "" : "bad"}">${msg}</div>`;
+    }[e && e.code] || "Analiza nu a reușit. Încearcă din nou.";
+    const det = e && e.message && !["cancelled"].includes(e.code) ? `<br><span class="mono" style="font-size:.8rem">Detaliu: ${esc(e.code || "")} – ${esc(e.message)}</span>` : "";
+    $("analysis").innerHTML = `<div class="note ${e && e.code === "cancelled" ? "" : "bad"}">${msg}${det}</div>`;
   } finally { $("stop").hidden = true; updateButtons(); }
 });
 const VERD = { neconform: ["Neconform", "bad"], posibil_neconform: ["Posibil neconform", "warn"], conform: ["Fără abateri vizibile", "ok"], imagine_neclara: ["Imagine neclară", "info"] };
