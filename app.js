@@ -212,16 +212,35 @@ if (window.claude && window.claude.__shim && navigator.geolocation) {
 }
 
 /* ---------- Fotografie ---------- */
-["photo", "photoCam", "photoGal"].forEach(id => $(id).addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if (f) loadPhoto(f); e.target.value = ""; }));
+["photo", "photoCam", "photoGal"].forEach(id => $(id).addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try { await loadPhoto(f); } finally { e.target.value = ""; }
+}));
+// Decodare robustă: întâi micșorat direct la decodare (poze de 50–200 MP), apoi variante de rezervă.
+async function decodeScaled(f, max) {
+  try { // 1) createImageBitmap cu micșorare la decodare
+    const probe = await createImageBitmap(f, { imageOrientation: "from-image", resizeWidth: max, resizeQuality: "high" });
+    if (probe.height <= max) return probe;
+    probe.close && probe.close();
+    return await createImageBitmap(f, { imageOrientation: "from-image", resizeHeight: max, resizeQuality: "high" });
+  } catch {}
+  try { return await createImageBitmap(f, { imageOrientation: "from-image" }); } catch {} // 2) fără micșorare
+  const url = URL.createObjectURL(f); // 3) prin element <img>
+  try { const im = new Image(); im.src = url; await im.decode(); return im; } finally { setTimeout(() => URL.revokeObjectURL(url), 5000); }
+}
 async function loadPhoto(f) {
+  if (/hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name || "")) { toast("Poza e HEIC. Setează camera pe JPEG („Cel mai compatibil”) sau alege altă poză."); }
+  $("dropEmpty").innerHTML = `<div class="thinking"><span class="dots"><i></i><i></i><i></i></span> Se încarcă poza…</div>`;
   S.file = f; S.result = null; $("analysis").innerHTML = ""; $("step4").hidden = true; S.savedId = null;
   try {
-    const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const bmp = await decodeScaled(f, 1800);
     S.blob = await scaled(bmp, 1800, 0.86, "blob");
     S.thumb = await scaled(bmp, 360, 0.7, "dataurl");
     bmp.close && bmp.close();
-  } catch {
-    toast("Formatul pozei nu poate fi citit aici (ex. HEIC pe desktop). Încearcă JPG/PNG.");
+    if (!S.blob) throw new Error("blob");
+  } catch (err) {
+    resetDrop();
+    toast(`Poza nu a putut fi deschisă (${f.type || "tip necunoscut"}, ${(f.size / 1048576).toFixed(1)} MB). Încearcă altă poză sau „Fă o poză”.`);
     return;
   }
   $("preview").src = URL.createObjectURL(S.blob); $("preview").hidden = false; $("dropEmpty").hidden = true; $("drop").classList.add("has");
@@ -236,9 +255,12 @@ async function loadPhoto(f) {
   $("photoMeta").innerHTML = meta.join(""); $("photoMeta").hidden = !meta.length;
   updateButtons();
 }
+const DROP_EMPTY_HTML = document.getElementById("dropEmpty").innerHTML;
+function resetDrop() { $("dropEmpty").innerHTML = DROP_EMPTY_HTML; $("dropEmpty").hidden = false; $("preview").hidden = true; $("drop").classList.remove("has"); }
 function scaled(bmp, max, q, kind) {
-  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
-  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  const W = bmp.naturalWidth || bmp.width, Hh = bmp.naturalHeight || bmp.height;
+  const k = Math.min(1, max / Math.max(W, Hh));
+  const c = document.createElement("canvas"); c.width = Math.round(W * k); c.height = Math.round(Hh * k);
   c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   if (kind === "dataurl") return Promise.resolve(c.toDataURL("image/jpeg", q));
   return new Promise(res => c.toBlob(res, "image/jpeg", q));
@@ -377,7 +399,7 @@ $("saveRec").addEventListener("click", async () => {
 $("reset").addEventListener("click", () => {
   Object.assign(S, { file: null, blob: null, thumb: null, lat: null, lon: null, sectorAuto: null, edge: null, date: null, result: null, savedId: null });
   ["coords", "adresa", "nota", "letter"].forEach(id => $(id).value = ""); $("sector").value = "";
-  $("photo").value = ""; $("preview").hidden = true; $("dropEmpty").hidden = false; $("drop").classList.remove("has");
+  $("photo").value = ""; resetDrop();
   $("photoMeta").hidden = true; $("analysis").innerHTML = ""; $("step4").hidden = true;
   locNote("ok", "Coordonatele vin din fotografie. Dacă poza nu le are, lipește-le din Google Maps sau atinge harta de mai jos.");
   renderPickMap(); updateButtons(); window.scrollTo({ top: 0, behavior: "smooth" });
