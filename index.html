@@ -55,7 +55,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .brand h1 b{color:var(--tactile)}
 .brand small{font-family:var(--f-mono);font-size:.72rem;color:#b9bbbf;text-align:right}
 nav.tabs{display:flex;gap:2px}
-nav.tabs button{flex:1;background:transparent;border:0;color:#c9cbcf;font-family:var(--f-display);font-weight:600;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;padding:var(--s1) var(--s1) 10px;border-bottom:3px solid transparent;cursor:pointer}
+nav.tabs button{flex:1;background:transparent;border:0;color:#c9cbcf;font-family:var(--f-display);font-weight:600;font-size:clamp(.82rem,3.6vw,1.05rem);letter-spacing:.03em;text-transform:uppercase;padding:var(--s1) 2px 10px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--tactile)}
 nav.tabs button:focus-visible{outline:2px solid var(--tactile);outline-offset:-2px}
 main{padding-block:var(--s4) var(--s5)}
@@ -148,6 +148,7 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       <button role="tab" id="tab-nou" aria-selected="true" data-view="nou">Constatare</button>
       <button role="tab" id="tab-harta" aria-selected="false" data-view="harta">Hartă</button>
       <button role="tab" id="tab-registru" aria-selected="false" data-view="registru">Registru <span id="regCount"></span></button>
+      <button role="tab" id="tab-profil" aria-selected="false" data-view="profil">Profil <span id="profDot" aria-hidden="true" style="color:var(--tactile)">●</span></button>
     </nav>
   </div>
 </header>
@@ -155,6 +156,7 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
 <main class="wrap">
   <!-- ============ CONSTATARE NOUĂ ============ -->
   <section class="view" id="view-nou">
+    <div class="note warn" id="profBanner" hidden>Completează-ți o dată <b>profilul</b> (nume, prenume, e-mail). Fără el, sesizările nu se iau în considerare. <button class="btn small" type="button" data-goto="profil">Deschide Profilul</button></div>
     <div class="step">
       <h2><span class="n">01</span> Fotografia</h2>
       <label class="photo-drop" id="drop" for="photo">
@@ -201,23 +203,21 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
 
     <div class="step" id="step4" hidden>
       <h2><span class="n">04</span> Sesizarea</h2>
-      <p class="hint">Petițiile anonime nu se iau în considerare (OG 27/2002, art. 7). Datele tale rămân doar în acest browser.</p>
-      <div class="grid2">
-        <div><label class="lbl" for="pNume">Nume și prenume</label><input type="text" id="pNume" autocomplete="name"></div>
-        <div><label class="lbl" for="pEmail">E-mail pentru răspuns</label><input type="email" id="pEmail" autocomplete="email"></div>
-        <div><label class="lbl" for="pTel">Telefon (opțional)</label><input type="tel" id="pTel" autocomplete="tel"></div>
-        <div><label class="lbl" for="pAdr">Domiciliul (opțional)</label><input type="text" id="pAdr" autocomplete="street-address"></div>
-      </div>
+      <div id="signedAs" class="note"></div>
       <div><label class="lbl">Destinatar</label><div class="recips" id="recips"></div></div>
       <div><label class="lbl" for="letter">Textul sesizării (îl poți edita)</label>
         <textarea id="letter" style="min-height:340px"></textarea></div>
+      <div class="row" id="shareRow" hidden>
+        <button class="btn primary" id="shareMail">Trimite e-mail cu poza</button>
+        <span class="hint">se deschide lista de aplicații (alege Gmail); adresa destinatarului se copiază automat – o lipești la „Către”</span>
+      </div>
       <div class="row">
         <button class="btn dark" id="copyLetter">Copiază textul</button>
         <button class="btn" id="copySubject">Copiază subiectul</button>
         <a class="btn" id="mailto" href="#" target="_blank" rel="noopener">Deschide e-mailul</a>
         <button class="btn" id="savePhoto" hidden>Salvează fotografia</button>
       </div>
-      <p class="hint">Atașează fotografia manual la e-mail sau în formularul online al instituției. Butonul „Deschide e-mailul” poate să nu funcționeze în unele aplicații; adresa e afișată mai sus și se poate copia.</p>
+      <p class="hint">„Deschide e-mailul” nu poate atașa poza (limită a browserelor): pe telefon folosește „Trimite e-mail cu poza”, iar pe calculator salvează fotografia și atașeaz-o manual.</p>
       <div class="row">
         <button class="btn primary" id="saveRec">Salvează în registru</button>
         <button class="btn small" id="reset">Constatare nouă</button>
@@ -252,6 +252,21 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       <button class="btn small" id="exportBtn" hidden>Exportă registrul</button>
     </div>
     <div id="regList" style="display:flex;flex-direction:column;gap:var(--s2)"></div>
+  </section>
+  <!-- ============ PROFIL ============ -->
+  <section class="view" id="view-profil" hidden>
+    <div class="step">
+      <h2>Profilul petentului</h2>
+      <p class="hint">Datele apar în fiecare sesizare. OG 27/2002, art. 7: petițiile anonime sau fără datele de identificare ale petentului nu se iau în considerare.</p>
+      <div class="grid2">
+        <div><label class="lbl" for="pNume">Nume și prenume <span style="color:var(--bad)">*</span></label><input type="text" id="pNume" autocomplete="name" placeholder="ex. Popescu Ana"></div>
+        <div><label class="lbl" for="pEmail">E-mail pentru răspuns <span style="color:var(--bad)">*</span></label><input type="email" id="pEmail" autocomplete="email"></div>
+        <div><label class="lbl" for="pAdr">Domiciliul (recomandat)</label><input type="text" id="pAdr" autocomplete="street-address" placeholder="unele instituții îl cer"></div>
+        <div><label class="lbl" for="pTel">Telefon (opțional)</label><input type="tel" id="pTel" autocomplete="tel"></div>
+      </div>
+      <p class="hint" id="profErr" style="color:var(--bad);margin:0"></p>
+      <div class="row"><button class="btn primary" id="saveProf" type="button">Salvează profilul</button><span class="hint" id="profWhere"></span></div>
+    </div>
   </section>
   <footer>Analiza automată e un ajutor la redactare, nu o expertiză tehnică. Verifică referințele înainte de trimitere. Adresele instituțiilor: site-urile primăriilor și Civia.ro (nov. 2026).</footer>
 </main>

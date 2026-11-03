@@ -30,7 +30,7 @@
     if (!r.ok) throw new Error(j.error_description || j.msg || j.message || ("Eroare " + r.status));
     return j;
   }
-  function keep(j) { session = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email } }; ls.set(LS_SES, session); }
+  function keep(j) { session = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email, meta: j.user.user_metadata || {} } }; ls.set(LS_SES, session); }
   let refreshing = null;
   async function fresh() {
     if (!session) throw new Error("neautentificat");
@@ -85,10 +85,13 @@
       catch (x) { err.textContent = /invalid/i.test(x.message) ? "E-mail sau parolă greșită." : ("Nu mă pot conecta: " + x.message); f.querySelector("button[type=submit]").disabled = false; }
     });
   }
+  async function refreshUser() { // profilul (nume, telefon, domiciliu) e în contul Supabase → același pe toate dispozitivele
+    try { const r = await api(CFG.supabaseUrl + "/auth/v1/user"); if (r.ok) { const u = await r.json(); session.user.meta = u.user_metadata || {}; session.user.email = u.email || session.user.email; ls.set(LS_SES, session); } } catch {}
+  }
   function start() {
     const b = document.createElement("button"); b.className = "tl-out"; b.type = "button";
     b.textContent = "Ieșire · " + (session.user.email || ""); b.onclick = logout; document.body.appendChild(b);
-    readyResolve();
+    refreshUser().finally(readyResolve);
   }
 
   /* ---------- db (tabelul tl_sesizari, rânduri {id, data}) ---------- */
@@ -187,7 +190,16 @@
   sample.limits = async () => ({ maxPromptBytes: 60000, images: { maxCount: 1, maxInputBytes: 5 * 1024 * 1024, mediaTypes: ["image/jpeg"] } });
 
   /* ---------- user / downloads ---------- */
-  const user = { id: async () => session.user.id, me: async () => ({ id: session.user.id, name: session.user.email }), isOwner: () => true, canEdit: () => true, can: () => true, profiles: async () => ({}) };
+  const meta = () => (session && session.user.meta) || {};
+  const user = {
+    id: async () => session.user.id,
+    me: async () => ({ id: session.user.id, isMe: true, name: meta().full_name || "", email: meta().contact_email || session.user.email || null, tel: meta().tel || "", domiciliu: meta().domiciliu || "" }),
+    async saveProfile(data) {
+      const r = await api(CFG.supabaseUrl + "/auth/v1/user", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data }) });
+      if (r.ok) { const u = await r.json(); session.user.meta = u.user_metadata || data; ls.set(LS_SES, session); }
+    },
+    isOwner: () => true, canEdit: () => true, can: () => true, profiles: async () => ({})
+  };
   const downloads = {
     async save({ filename, data }) {
       const blob = data instanceof Blob ? data : new Blob([data]);

@@ -104,7 +104,7 @@ const ls = { get(k) { try { return localStorage.getItem(k) } catch { return null
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
 function showView(v) {
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
-  ["nou", "harta", "registru"].forEach(x => $("view-" + x).hidden = x !== v);
+  ["nou", "harta", "registru", "profil"].forEach(x => $("view-" + x).hidden = x !== v);
   if (v === "harta") renderBigMap();
   if (v === "registru") renderRegistry();
 }
@@ -336,7 +336,57 @@ function buildRecips() {
 function chosenRecip() { return S.recips.find(x => x.n === S.chosen) || S.recips[0]; }
 
 /* ---------- Text sesizare ---------- */
-["pNume", "pEmail", "pTel", "pAdr"].forEach(id => { const v = ls.get("tl_" + id); if (v) $(id).value = v; $(id).addEventListener("change", () => { ls.set("tl_" + id, $(id).value); buildLetter(); }); });
+/* ---------- Profil (obligatoriu: nume + prenume, e-mail) ---------- */
+const PF = ["pNume", "pEmail", "pTel", "pAdr"];
+PF.forEach(id => { const v = ls.get("tl_" + id); if (v) $(id).value = v; $(id).addEventListener("input", () => { ls.set("tl_" + id, $(id).value); profileState(); }); });
+document.addEventListener("click", e => { const g = e.target.closest("[data-goto]"); if (g) showView(g.dataset.goto); });
+function profileOk() {
+  const n = $("pNume").value.trim(), m = $("pEmail").value.trim();
+  if (n.split(/\s+/).filter(Boolean).length < 2) return "Scrie numele și prenumele (minim două cuvinte).";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return "Scrie o adresă de e-mail validă pentru răspuns.";
+  return "";
+}
+function profileState() {
+  const err = profileOk();
+  $("profDot").hidden = !err; $("profBanner").hidden = !err;
+  $("signedAs").className = "note" + (err ? " bad" : "");
+  $("signedAs").innerHTML = err
+    ? `<b>Profil incomplet.</b> ${esc(err)} <button class="btn small" type="button" data-goto="profil">Completează profilul</button>`
+    : `Semnat: <b>${esc($("pNume").value.trim())}</b> · ${esc($("pEmail").value.trim())}${$("pAdr").value.trim() ? " · " + esc($("pAdr").value.trim()) : ""} <button class="btn small" type="button" data-goto="profil">Modifică</button>`;
+  ["copyLetter", "shareMail"].forEach(id => $(id).disabled = !!err);
+  $("mailto").style.pointerEvents = err ? "none" : ""; $("mailto").style.opacity = err ? ".45" : "";
+  if (S.result) buildLetter();
+  return !err;
+}
+async function fillProfile() {
+  const put = (id, v) => { if (v && !$(id).value.trim()) { $(id).value = v; ls.set("tl_" + id, v); } };
+  // 1) profilul salvat de tine (Claude: în baza ta privată; GitHub: în contul Supabase)
+  try {
+    if (cap.db && cap.uid && !(window.claude && window.claude.__shim)) {
+      const d = await cap.db.doc("data/users/" + cap.uid + "/profile").get();
+      if (d.exists) { const p = d.data(); put("pNume", p.nume); put("pEmail", p.email); put("pTel", p.tel); put("pAdr", p.domiciliu); }
+    }
+  } catch {}
+  // 2) din contul cu care ești logată
+  if (cap.user && cap.user.me) {
+    const me = await cap.user.me().catch(() => null);
+    if (me) { put("pNume", me.name); put("pEmail", me.email); put("pTel", me.tel); put("pAdr", me.domiciliu); }
+  }
+  $("profWhere").textContent = window.claude && window.claude.__shim ? "se salvează în contul tău – apare pe toate dispozitivele" : (cap.db && cap.uid ? "se salvează privat, în contul tău Claude" : "se salvează în acest browser");
+  profileState();
+}
+$("saveProf").addEventListener("click", async () => {
+  const err = profileOk(); $("profErr").textContent = err; if (err) return;
+  const data = { nume: $("pNume").value.trim(), email: $("pEmail").value.trim(), tel: $("pTel").value.trim(), domiciliu: $("pAdr").value.trim() };
+  PF.forEach(id => ls.set("tl_" + id, $(id).value));
+  try {
+    if (cap.user && cap.user.saveProfile) await cap.user.saveProfile({ full_name: data.nume, contact_email: data.email, tel: data.tel, domiciliu: data.domiciliu });
+    else if (cap.db && cap.uid) await cap.db.doc("data/users/" + cap.uid + "/profile").set(data);
+    toast("Profil salvat"); profileState(); showView("nou");
+  } catch { toast("Profilul s-a salvat doar în acest browser."); }
+});
+profileState();
+
 function subject() {
   const r = S.result || {}; const sec = $("sector").value;
   return `Sesizare – trasee pietonale neconforme (siguranță în exploatare și accesibilitate) – ${$("adresa").value.trim() || "locație cu coordonatele anexate"}${sec ? ", Sector " + sec : ""}`;
@@ -361,10 +411,20 @@ function buildLetter() {
   t += `Vă solicit:\n`; (r.solicitari && r.solicitari.length ? r.solicitari : ["verificarea situației în teren", "dispunerea măsurilor de remediere"]).forEach(s => t += `– ${s};\n`);
   t += `– comunicarea răspunsului la adresa de e-mail de mai sus, în termenul legal de 30 de zile prevăzut de art. 8 din OG nr. 27/2002.\n\nAnexă: fotografia locației (${data}).\n\nCu stimă,\n${nume}\n${new Date().toLocaleDateString("ro-RO")}`;
   $("letter").value = t;
+  $("shareRow").hidden = !canShareFile();
   const m = $("mailto");
   if (rc.e) { m.hidden = false; m.href = `mailto:${rc.e}?subject=${encodeURIComponent(subject())}&body=${encodeURIComponent(t)}`; }
   else m.hidden = true;
 }
+function photoFile() { return S.blob ? new File([S.blob], `sesizare-${(S.date || new Date()).toISOString().slice(0, 10)}-S${$("sector").value || "x"}.jpg`, { type: "image/jpeg" }) : null; }
+function canShareFile() { try { const f = photoFile(); return !!(window.claude && window.claude.__shim && f && navigator.canShare && navigator.canShare({ files: [f] })); } catch { return false; } }
+$("shareMail").addEventListener("click", async () => {
+  const f = photoFile(); if (!f) return;
+  const rc = chosenRecip();
+  if (rc && rc.e) { try { await navigator.clipboard.writeText(rc.e); toast("Adresa " + rc.e + " e copiată – lipește-o la „Către”"); } catch {} }
+  try { await navigator.share({ files: [f], title: subject(), text: $("letter").value }); }
+  catch (e) { if (e && e.name !== "AbortError") toast("Partajarea nu a mers. Salvează fotografia și atașeaz-o manual."); }
+});
 async function copy(text, okMsg) { try { await navigator.clipboard.writeText(text); toast(okMsg); } catch { $("letter").focus(); $("letter").select(); toast("Textul e selectat — copiază-l manual."); } }
 $("copyLetter").addEventListener("click", () => copy($("letter").value, "Textul sesizării a fost copiat"));
 $("copySubject").addEventListener("click", () => copy(subject(), "Subiectul a fost copiat"));
@@ -476,6 +536,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { 
   if (sample) { const lim = await sample.limits().catch(() => null); if (!lim || !lim.images) { cap.sample = null; $("analysis").innerHTML = `<div class="note warn">Această vizualizare nu poate trimite imagini către Claude. Deschide pagina în aplicația Claude sau pe claude.ai.</div>`; } }
   else $("analysis").innerHTML = `<div class="note warn">Analiza cu Claude nu e disponibilă în această vizualizare.</div>`;
   $("savePhoto").hidden = !downloads; $("exportBtn").hidden = !downloads;
+  fillProfile();
   updateButtons();
   if (db) {
     const timer = setTimeout(() => { if (!S.records.length) $("regList").innerHTML = `<div class="empty">Registrul nu răspunde încă. Verifică conexiunea.</div>`; }, 10000);
