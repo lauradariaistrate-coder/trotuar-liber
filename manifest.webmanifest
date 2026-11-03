@@ -1,0 +1,16 @@
+{
+  "name": "Trotuar Liber",
+  "short_name": "Trotuar Liber",
+  "description": "Sesizări pentru trotuare neconforme în București, verificate după NP 051-2012 și NP 068-02.",
+  "lang": "ro",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b2e33",
+  "theme_color": "#2b2e33",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

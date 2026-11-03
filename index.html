@@ -3,9 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in; connect-src https://*.supabase.co https://*.supabase.in; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in; connect-src https://*.supabase.co https://*.supabase.in; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2b2e33">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trotuar Liber">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Trotuar Liber</title>
 
@@ -171,6 +179,7 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       </div>
       <div><label class="lbl" for="adresa">Adresa (stradă, nr., reper)</label>
         <input type="text" id="adresa" placeholder="ex. Str. Popa Nan nr. 12, în dreptul stației STB" autocomplete="off"></div>
+      <div class="row" id="geoRow" hidden><button class="btn dark small" id="geoBtn" type="button">Locația mea acum</button><span class="hint">folosește GPS-ul telefonului, dacă poza nu are coordonate</span></div>
       <div class="map-box pick" id="pickMap"></div>
       <div><label class="lbl" for="nota">Ce ai observat / ce ai măsurat (opțional, ajută analiza)</label>
         <textarea id="nota" placeholder="ex. mașini parcate pe toată lățimea trotuarului; lățime liberă măsurată ~60 cm; bordura la trecere ~15 cm"></textarea></div>
