@@ -157,6 +157,7 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
 <main class="wrap">
   <!-- ============ CONSTATARE NOUĂ ============ -->
   <section class="view" id="view-nou">
+    <div class="note" id="pendingBanner" hidden></div>
     <div class="note warn" id="profBanner" hidden>Completează-ți o dată <b>profilul</b> (nume, prenume, e-mail). Fără el, sesizările nu se iau în considerare. <button class="btn small" type="button" data-goto="profil">Deschide Profilul</button></div>
     <div class="step">
       <h2><span class="n">01</span> Fotografia</h2>
@@ -276,6 +277,22 @@ footer{color:var(--muted);font-size:.8rem;padding-block:var(--s3) var(--s5)}
       </div>
       <p class="hint" id="profErr" style="color:var(--bad);margin:0"></p>
       <div class="row"><button class="btn primary" id="saveProf" type="button">Salvează profilul</button><span class="hint" id="profWhere"></span></div>
+    </div>
+    <div class="step" id="usersStep" hidden>
+      <h2>Utilizatori</h2>
+      <p class="hint" style="margin:0">Trimite linkul aplicației; persoana apasă „Creează cont nou”, își alege parola și confirmă e-mailul. Apoi apare aici și o aprobi. Până atunci nu poate analiza și nu poate salva nimic.</p>
+      <div id="usersList" style="display:flex;flex-direction:column;gap:var(--s1)"></div>
+      <div class="row"><button class="btn small" type="button" id="usersRefresh">Reîncarcă lista</button><button class="btn small" type="button" id="copyAppLink">Copiază linkul aplicației</button></div>
+    </div>
+    <div class="step" id="pwStep" hidden>
+      <h2>Schimbă parola</h2>
+      <p class="hint" style="margin:0">Pentru contul cu care ești logată. Minim 10 caractere.</p>
+      <div class="grid2">
+        <div><label class="lbl" for="pw1">Parola nouă</label><input type="password" id="pw1" autocomplete="new-password"></div>
+        <div><label class="lbl" for="pw2">Repetă parola nouă</label><input type="password" id="pw2" autocomplete="new-password"></div>
+      </div>
+      <p class="hint" id="pwErr" style="color:var(--bad);margin:0"></p>
+      <div class="row"><button class="btn dark" id="pwSave" type="button">Schimbă parola</button></div>
     </div>
   </section>
   <footer>Analiza automată e un ajutor la redactare, nu o expertiză tehnică. Verifică referințele înainte de trimitere. Adresele instituțiilor: site-urile primăriilor și Civia.ro (nov. 2026).</footer>

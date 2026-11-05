@@ -4,10 +4,11 @@
 //
 // Secrete (Project Settings → Edge Functions → Secrets):
 //   ANTHROPIC_API_KEY   cheia ta Anthropic (obligatoriu)
-//   ALLOWED_EMAILS      e-mailurile care au voie să folosească analiza, separate prin virgulă (obligatoriu)
+//   ALLOWED_EMAILS      (opțional) e-mailuri care pot analiza oricum, separate prin virgulă.
+//                       Ceilalți pot analiza doar după ce administratorul îi aprobă în aplicație (tabelul tl_members).
 //   ALLOWED_ORIGIN      adresa aplicației, ex. https://numele-tau.github.io (obligatoriu)
 //   DAILY_LIMIT         câte analize pe zi pentru un utilizator (implicit 30)
-//   MODEL               modelul Claude (implicit claude-sonnet-5-5)
+//   MODEL               modelul Claude (implicit claude-haiku-5-5 – cel mai ieftin; pentru analiză mai fină: claude-sonnet-5-5)
 // SUPABASE_URL, SUPABASE_ANON_KEY și SUPABASE_SERVICE_ROLE_KEY sunt puse automat de Supabase.
 // Dacă proiectul folosește doar cheile noi (sb_secret_...), adaugă secretul SERVICE_KEY cu cheia secretă.
 
@@ -31,6 +32,39 @@ function svcHeaders(): Record<string, string> {
   if (k.split(".").length === 3) h.Authorization = "Bearer " + k; // cheie JWT (vechea service_role)
   return h;
 }
+// Formularul pe care modelul e obligat să-l completeze: rezultatul e mereu JSON valid,
+// indiferent de ghilimelele românești sau de rândurile noi din texte.
+const S = (description: string) => ({ type: "string", description });
+const RAPORT_TOOL = {
+  name: "raport",
+  description: "Completează raportul de analiză normativă a fotografiei.",
+  input_schema: {
+    type: "object",
+    properties: {
+      verdict: { type: "string", enum: ["neconform", "posibil_neconform", "conform", "imagine_neclara"] },
+      rezumat: S("1-2 propoziții"),
+      tip_spatiu: { type: "string", enum: ["trotuar", "trecere_pietoni", "statie_transport", "parcare", "alee", "intersectie", "altul"] },
+      probleme: { type: "array", items: { type: "object", properties: {
+        titlu: S("scurt"), constatare: S("ce se vede, cu valori estimate"), cerinta: S("ce cere norma, cu valoarea"),
+        referinta: S("ex. NP 051-2012, IV.2.4 (7)"),
+        gravitate: { type: "string", enum: ["ridicata", "medie", "scazuta"] },
+        certitudine: { type: "string", enum: ["sigur", "probabil", "de_verificat"] },
+      }, required: ["titlu", "constatare", "cerinta", "referinta", "gravitate", "certitudine"] } },
+      de_masurat: { type: "array", items: { type: "string" } },
+      responsabil: { type: "string", enum: ["primarie_sector", "politia_locala", "pmb", "operator_retea"] },
+      responsabil_secundar: { type: ["string", "null"], enum: ["primarie_sector", "politia_locala", "pmb", "operator_retea", null] },
+      motiv_responsabil: S("o propoziție"),
+      adresa_vizibila: { type: ["string", "null"] },
+      descriere_sesizare: S("3-6 propoziții, persoana I"),
+      solicitari: { type: "array", items: { type: "string" } },
+      zone_private: { type: "array", description: "TOATE fețele de persoane și numerele de înmatriculare vizibile, coordonate relative 0–1 (x,y = colț stânga-sus)", items: { type: "object", properties: {
+        tip: { type: "string", enum: ["fata", "numar"] }, x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" },
+      }, required: ["tip", "x", "y", "w", "h"] } },
+    },
+    required: ["verdict", "rezumat", "tip_spatiu", "probleme", "de_masurat", "responsabil", "motiv_responsabil", "descriere_sesizare", "solicitari", "zone_private"],
+  },
+};
+
 const json = (body: unknown, status: number, h: Record<string, string>) =>
   new Response(JSON.stringify(body), { status, headers: { ...h, "Content-Type": "application/json" } });
 
@@ -49,7 +83,12 @@ Deno.serve(async (req) => {
   if (!ur.ok) return json({ error: "Sesiune invalidă" }, 401, h);
   const user = await ur.json();
   const allowed = env("ALLOWED_EMAILS").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
-  if (!user?.email || !allowed.includes(String(user.email).toLowerCase())) return json({ error: "Cont fără drept de analiză" }, 403, h);
+  let ok = !!user?.email && allowed.includes(String(user.email).toLowerCase());
+  if (!ok && user?.id) { // cont aprobat de administrator în aplicație
+    const mr = await fetch(env("SUPABASE_URL") + "/rest/v1/tl_members?select=status&user_id=eq." + user.id, { headers: svcHeaders() });
+    if (mr.ok) { const rows = await mr.json(); ok = rows?.[0]?.status === "approved"; }
+  }
+  if (!ok) return json({ error: "Cont fără drept de analiză (neaprobat încă)" }, 403, h);
 
   // 2. Ce trimite? Dimensiuni limitate, o singură imagine JPEG.
   let body: { prompt?: string; images?: string[] };
@@ -67,21 +106,33 @@ Deno.serve(async (req) => {
     headers: svcHeaders(),
     body: JSON.stringify({ p_owner: user.id }),
   });
-  if (!cr.ok) return json({ error: "Contorul de utilizare nu răspunde" }, 500, h);
+  if (!cr.ok) {
+    const detail = (await cr.text().catch(() => "")).slice(0, 200);
+    return json({ error: `Contorul de utilizare nu răspunde (${cr.status}: ${detail})` }, 500, h);
+  }
   const used = Number(await cr.json());
   if (used > limit) return json({ error: `Ai atins limita de ${limit} analize pe zi` }, 429, h);
 
   // 4. Cererea către Anthropic.
+  // Partea fixă a promptului (rol + extrasele din normative) e pusă PRIMA și marcată pentru cache:
+  // dacă faci mai multe analize la rând (în 5 minute), ea costă ~10% la cererile următoare.
+  const MARK = "CONTEXT DE LA UTILIZATOR:";
+  const cut = prompt.indexOf(MARK);
+  const fixed = cut > 0 ? prompt.slice(0, cut) : "";
+  const variable = cut > 0 ? prompt.slice(cut) : prompt;
+  const content: unknown[] = [];
+  if (fixed) content.push({ type: "text", text: fixed, cache_control: { type: "ephemeral" } });
+  content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: images[0] } });
+  content.push({ type: "text", text: "Imaginea de mai sus este fotografia de analizat.\n\n" + variable + "\n\nCompletează rezultatul prin instrumentul „raport”, concis." });
   const ar = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: env("MODEL", "claude-sonnet-5-5"),
-      max_tokens: 4096,
-      messages: [{ role: "user", content: [
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: images[0] } },
-        { type: "text", text: prompt + "\n\nRăspunsul tău va fi citit automat: scrie doar obiectul JSON cerut." },
-      ] }],
+      model: env("MODEL", "claude-haiku-5-5"),
+      max_tokens: 8000, // plafon; se plătesc doar tokenii generați efectiv
+      tools: [RAPORT_TOOL],
+      tool_choice: { type: "tool", name: "raport" },
+      messages: [{ role: "user", content }],
     }),
   });
   const aj = await ar.json().catch(() => ({}));
@@ -89,6 +140,12 @@ Deno.serve(async (req) => {
     const status = ar.status === 429 ? 429 : 502;
     return json({ error: aj?.error?.message ?? ("Anthropic " + ar.status) }, status, h);
   }
-  const text = (aj.content ?? []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
-  return json({ text, used, limit }, 200, h);
+  const tool = (aj.content ?? []).find((c: { type: string; name?: string }) => c.type === "tool_use" && c.name === "raport");
+  const text = tool ? JSON.stringify(tool.input) : (aj.content ?? []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
+  const stop = aj.stop_reason ?? "";
+  if (!text.trim()) {
+    const types = (aj.content ?? []).map((c: { type: string }) => c.type).join(",") || "nimic";
+    return json({ error: `Modelul nu a scris text (stop: ${stop}; conținut: ${types})` }, 502, h);
+  }
+  return json({ text, stop, used, limit, usage: aj.usage ?? null }, 200, h);
 });
